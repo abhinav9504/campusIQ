@@ -1,0 +1,1240 @@
+// ============================================================
+// CAMPUSIQ - MAIN JAVASCRIPT
+// ============================================================
+
+
+// ============================================================
+// LOGIN
+// ============================================================
+
+function loginUser() {
+
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    const message = document.getElementById("loginMessage");
+
+    message.textContent = "";
+
+    // STUDENT
+    if (
+        email === "student@campusiq.com" &&
+        password === "student123"
+    ) {
+
+        localStorage.setItem("campusRole", "student");
+        localStorage.setItem("campusUser", email);
+
+        openStudentPortal();
+        return;
+    }
+
+    // ADMIN
+    if (
+        email === "admin@campusiq.com" &&
+        password === "admin123"
+    ) {
+
+        localStorage.setItem("campusRole", "admin");
+        localStorage.setItem("campusUser", email);
+
+        openAdminPortal();
+        return;
+    }
+
+    message.textContent = "❌ Invalid email or password.";
+}
+
+
+// ============================================================
+// OPEN STUDENT PORTAL
+// ============================================================
+
+function openStudentPortal() {
+
+    const role = localStorage.getItem("campusRole");
+
+    if (role !== "student") {
+        return;
+    }
+
+    document.getElementById("loginPage").hidden = true;
+    document.getElementById("app").hidden = false;
+
+    document.getElementById("studentPortal").hidden = false;
+    document.getElementById("adminPortal").hidden = true;
+
+    document.getElementById("report").hidden = true;
+    document.getElementById("track").hidden = true;
+    document.getElementById("admin").hidden = true;
+
+    const adminButton =
+        document.getElementById("adminNavButton");
+
+    if (adminButton) {
+        adminButton.hidden = true;
+    }
+
+    updateStudentStats();
+    renderStudentTickets();
+}
+
+
+// ============================================================
+// OPEN ADMIN PORTAL
+// ============================================================
+
+function openAdminPortal() {
+
+    const role = localStorage.getItem("campusRole");
+
+    if (role !== "admin") {
+        return;
+    }
+
+    document.getElementById("loginPage").hidden = true;
+    document.getElementById("app").hidden = false;
+
+    document.getElementById("studentPortal").hidden = true;
+    document.getElementById("adminPortal").hidden = false;
+
+    document.getElementById("report").hidden = true;
+    document.getElementById("track").hidden = true;
+    document.getElementById("admin").hidden = true;
+
+    const adminButton =
+        document.getElementById("adminNavButton");
+
+    if (adminButton) {
+        adminButton.hidden = false;
+    }
+
+    renderTickets();
+}
+
+
+// ============================================================
+// LOGOUT
+// ============================================================
+
+function logoutUser() {
+
+    localStorage.removeItem("campusRole");
+    localStorage.removeItem("campusUser");
+
+    location.reload();
+}
+
+
+// ============================================================
+// PAGE NAVIGATION
+// ============================================================
+
+function showPage(pageId) {
+
+    const role = localStorage.getItem("campusRole");
+
+    if (!role) {
+        return;
+    }
+
+    const pages = [
+        "studentPortal",
+        "adminPortal",
+        "report",
+        "track",
+        "admin"
+    ];
+
+    pages.forEach(function(page) {
+
+        const element = document.getElementById(page);
+
+        if (element) {
+            element.hidden = true;
+        }
+
+    });
+
+
+    // STUDENT ACCESS
+    if (role === "student") {
+
+        if (
+            pageId === "report" ||
+            pageId === "track"
+        ) {
+
+            document.getElementById(pageId).hidden = false;
+
+            if (pageId === "track") {
+                renderStudentTickets();
+            }
+
+            return;
+        }
+
+        document.getElementById("studentPortal").hidden = false;
+        return;
+    }
+
+
+    // ADMIN ACCESS
+    if (role === "admin") {
+
+        if (pageId === "admin") {
+
+            document.getElementById("admin").hidden = false;
+
+            renderTickets();
+
+            return;
+        }
+
+        document.getElementById("adminPortal").hidden = false;
+    }
+}
+
+
+// ============================================================
+// BACK TO PORTAL
+// ============================================================
+
+function goBackToPortal() {
+
+    const role = localStorage.getItem("campusRole");
+
+    if (role === "student") {
+        openStudentPortal();
+    }
+
+    if (role === "admin") {
+        openAdminPortal();
+    }
+}
+
+
+// ============================================================
+// TICKET STORAGE
+// ============================================================
+
+function getTickets() {
+
+    const tickets =
+        localStorage.getItem("campusTickets");
+
+    if (!tickets) {
+        return [];
+    }
+
+    try {
+        return JSON.parse(tickets);
+    } catch (error) {
+        return [];
+    }
+}
+
+
+function saveTickets(tickets) {
+
+    localStorage.setItem(
+        "campusTickets",
+        JSON.stringify(tickets)
+    );
+}
+
+
+// ============================================================
+// GENERATE TICKET ID
+// ============================================================
+
+function generateTicketId() {
+
+    const number =
+        Math.floor(1000 + Math.random() * 9000);
+
+    return "CI-" + number;
+}
+
+
+// ============================================================
+// CREATE TICKET
+// ============================================================
+
+const ticketForm =
+    document.getElementById("ticketForm");
+
+if (ticketForm) {
+
+    ticketForm.addEventListener("submit", function(event) {
+
+        event.preventDefault();
+
+        const studentName =
+            document.getElementById("studentName").value.trim();
+
+        const location =
+            document.getElementById("location").value.trim();
+
+        const category =
+            document.getElementById("category").value;
+
+        const description =
+            document.getElementById("description").value.trim();
+
+        const user =
+            localStorage.getItem("campusUser") ||
+            "student@campusiq.com";
+
+
+        if (!studentName || !location || !description) {
+
+            alert("Please fill all required fields.");
+            return;
+        }
+
+
+        // Determine AI information
+        const analysis = getAIAnalysis(description);
+
+
+        const ticket = {
+
+            id: generateTicketId(),
+
+            studentName: studentName,
+
+            email: user,
+
+            location: location,
+
+            category:
+                category || analysis.category,
+
+            description: description,
+
+            department: analysis.department,
+
+            priority: analysis.priority,
+
+            action: analysis.action,
+
+            status: "Pending",
+
+            createdAt:
+                new Date().toLocaleString()
+
+        };
+
+
+        const tickets = getTickets();
+
+        tickets.push(ticket);
+
+        saveTickets(tickets);
+
+
+        alert(
+            "✅ Issue submitted successfully!\n\n" +
+            "Your Ticket ID: " + ticket.id
+        );
+
+
+        ticketForm.reset();
+
+
+        const aiPanel =
+            document.getElementById("aiPanel");
+
+        if (aiPanel) {
+            aiPanel.hidden = true;
+        }
+
+
+        updateStudentStats();
+
+        renderStudentTickets();
+
+
+        showPage("track");
+
+    });
+}
+
+
+// ============================================================
+// AI ANALYSIS
+// ============================================================
+
+function getAIAnalysis(description) {
+
+    const text =
+        description.toLowerCase();
+
+
+    let category = "General Maintenance";
+
+    let department = "Campus Operations";
+
+    let priority = "MEDIUM";
+
+    let action =
+        "Assign the issue to campus operations for inspection.";
+
+
+    // SAFETY
+    if (
+        text.includes("fire") ||
+        text.includes("smoke") ||
+        text.includes("danger") ||
+        text.includes("accident") ||
+        text.includes("injury") ||
+        text.includes("unsafe")
+    ) {
+
+        category = "Safety Issue";
+
+        department = "Campus Safety";
+
+        priority = "HIGH";
+
+        action =
+            "Immediately inspect the affected area and take appropriate safety measures.";
+    }
+
+
+    // INTERNET / IT
+    else if (
+        text.includes("wifi") ||
+        text.includes("internet") ||
+        text.includes("network") ||
+        text.includes("computer") ||
+        text.includes("login") ||
+        text.includes("software")
+    ) {
+
+        category = "Network / IT Issue";
+
+        department = "IT Department";
+
+        priority = "MEDIUM";
+
+        action =
+            "Assign to IT support and inspect network or system connectivity.";
+    }
+
+
+    // PLUMBING
+    else if (
+        text.includes("water") ||
+        text.includes("leak") ||
+        text.includes("tap") ||
+        text.includes("pipe") ||
+        text.includes("toilet")
+    ) {
+
+        category = "Plumbing";
+
+        department = "Maintenance";
+
+        priority = "HIGH";
+
+        action =
+            "Send maintenance staff to inspect the water or plumbing issue.";
+    }
+
+
+    // ELECTRICAL
+    else if (
+        text.includes("electric") ||
+        text.includes("electricity") ||
+        text.includes("light") ||
+        text.includes("fan") ||
+        text.includes("power") ||
+        text.includes("socket")
+    ) {
+
+        category = "Electrical";
+
+        department = "Electrical Maintenance";
+
+        priority = "HIGH";
+
+        action =
+            "Assign to electrical maintenance for immediate inspection.";
+    }
+
+
+    // CLASSROOM EQUIPMENT
+    else if (
+        text.includes("projector") ||
+        text.includes("speaker") ||
+        text.includes("smart board") ||
+        text.includes("microphone") ||
+        text.includes("mic")
+    ) {
+
+        category = "Classroom Equipment";
+
+        department = "Technical Support";
+
+        priority = "MEDIUM";
+
+        action =
+            "Assign technical support to inspect the classroom equipment.";
+    }
+
+
+    // CLEANLINESS
+    else if (
+        text.includes("garbage") ||
+        text.includes("dirty") ||
+        text.includes("clean") ||
+        text.includes("dust") ||
+        text.includes("waste")
+    ) {
+
+        category = "Cleanliness";
+
+        department = "Housekeeping";
+
+        priority = "MEDIUM";
+
+        action =
+            "Assign housekeeping staff to clean and inspect the affected area.";
+    }
+
+
+    return {
+        category: category,
+        department: department,
+        priority: priority,
+        action: action
+    };
+}
+
+
+// ============================================================
+// AI ANALYSIS BUTTON
+// ============================================================
+
+function analyzeIssue() {
+
+    const description =
+        document.getElementById("description").value.trim();
+
+
+    if (!description) {
+
+        alert(
+            "Please describe the issue first."
+        );
+
+        return;
+    }
+
+
+    const result =
+        getAIAnalysis(description);
+
+
+    document.getElementById("aiCategory")
+        .textContent = result.category;
+
+    document.getElementById("aiDepartment")
+        .textContent = result.department;
+
+    document.getElementById("aiPriority")
+        .textContent = result.priority;
+
+    document.getElementById("aiAction")
+        .textContent = result.action;
+
+
+    const panel =
+        document.getElementById("aiPanel");
+
+    panel.hidden = false;
+
+
+    panel.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+
+
+// ============================================================
+// STUDENT TICKET LIST
+// ============================================================
+
+function renderStudentTickets() {
+
+    const container =
+        document.getElementById("studentTicketList");
+
+    if (!container) {
+        return;
+    }
+
+
+    const user =
+        localStorage.getItem("campusUser");
+
+
+    const tickets =
+        getTickets().filter(function(ticket) {
+
+            return ticket.email === user;
+
+        });
+
+
+    if (tickets.length === 0) {
+
+        container.innerHTML =
+            "<p>No tickets yet. Report your first issue!</p>";
+
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    tickets.forEach(function(ticket) {
+
+        const card =
+            document.createElement("div");
+
+        card.className = "ticket-card";
+
+
+        card.innerHTML = `
+
+            <div class="ticket-top">
+
+                <strong>${ticket.id}</strong>
+
+                <span class="priority ${ticket.priority.toLowerCase()}">
+                    ${ticket.priority}
+                </span>
+
+            </div>
+
+            <h3>
+                ${ticket.category}
+            </h3>
+
+            <p>
+                ${ticket.description}
+            </p>
+
+            <p>
+                📍 ${ticket.location}
+            </p>
+
+            <p>
+                🏢 ${ticket.department}
+            </p>
+
+            <div class="ticket-status">
+                STATUS: ${ticket.status}
+            </div>
+
+            <div class="ticket-timeline">
+
+                <div class="timeline-step active">
+                    ✓ Reported
+                </div>
+
+                <div class="timeline-step ${
+                    ticket.status !== "Pending"
+                        ? "active"
+                        : ""
+                }">
+                    ${
+                        ticket.status !== "Pending"
+                            ? "✓"
+                            : "○"
+                    } Assigned
+                </div>
+
+                <div class="timeline-step ${
+                    ticket.status === "In Progress" ||
+                    ticket.status === "Resolved"
+                        ? "active"
+                        : ""
+                }">
+                    ${
+                        ticket.status === "In Progress" ||
+                        ticket.status === "Resolved"
+                            ? "✓"
+                            : "○"
+                    } In Progress
+                </div>
+
+                <div class="timeline-step ${
+                    ticket.status === "Resolved"
+                        ? "active"
+                        : ""
+                }">
+                    ${
+                        ticket.status === "Resolved"
+                            ? "✓"
+                            : "○"
+                    } Resolved
+                </div>
+
+            </div>
+
+        `;
+
+
+        container.appendChild(card);
+
+    });
+}
+
+
+// ============================================================
+// STUDENT STATISTICS
+// ============================================================
+
+function updateStudentStats() {
+
+    const user =
+        localStorage.getItem("campusUser");
+
+
+    const tickets =
+        getTickets().filter(function(ticket) {
+
+            return ticket.email === user;
+
+        });
+
+
+    const total =
+        tickets.length;
+
+
+    const active =
+        tickets.filter(function(ticket) {
+
+            return ticket.status !== "Resolved";
+
+        }).length;
+
+
+    const resolved =
+        tickets.filter(function(ticket) {
+
+            return ticket.status === "Resolved";
+
+        }).length;
+
+
+    const totalElement =
+        document.getElementById("studentTotal");
+
+    const activeElement =
+        document.getElementById("studentActive");
+
+    const resolvedElement =
+        document.getElementById("studentResolved");
+
+
+    if (totalElement) {
+        totalElement.textContent = total;
+    }
+
+    if (activeElement) {
+        activeElement.textContent = active;
+    }
+
+    if (resolvedElement) {
+        resolvedElement.textContent = resolved;
+    }
+}
+
+
+// ============================================================
+// TRACK TICKET
+// ============================================================
+
+function trackTicket() {
+
+    const id =
+        document.getElementById("trackTicketId")
+        .value
+        .trim()
+        .toUpperCase();
+
+
+    const result =
+        document.getElementById("trackResult");
+
+
+    const tickets =
+        getTickets();
+
+
+    const ticket =
+        tickets.find(function(item) {
+
+            return item.id === id;
+
+        });
+
+
+    if (!ticket) {
+
+        result.innerHTML = `
+            <div class="error-message">
+                ❌ Ticket not found.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    result.innerHTML = `
+
+        <div class="ticket-card">
+
+            <div class="ticket-top">
+
+                <strong>
+                    ${ticket.id}
+                </strong>
+
+                <span class="priority ${ticket.priority.toLowerCase()}">
+                    ${ticket.priority}
+                </span>
+
+            </div>
+
+            <h3>
+                ${ticket.category}
+            </h3>
+
+            <p>
+                ${ticket.description}
+            </p>
+
+            <p>
+                📍 ${ticket.location}
+            </p>
+
+            <p>
+                🏢 ${ticket.department}
+            </p>
+
+            <h3>
+                STATUS: ${ticket.status}
+            </h3>
+
+            <div class="ticket-timeline">
+
+                <div class="timeline-step active">
+                    ✓ Reported
+                </div>
+
+                <div class="timeline-step ${
+                    ticket.status !== "Pending"
+                        ? "active"
+                        : ""
+                }">
+                    ${
+                        ticket.status !== "Pending"
+                            ? "✓"
+                            : "○"
+                    } Assigned
+                </div>
+
+                <div class="timeline-step ${
+                    ticket.status === "In Progress" ||
+                    ticket.status === "Resolved"
+                        ? "active"
+                        : ""
+                }">
+                    ${
+                        ticket.status === "In Progress" ||
+                        ticket.status === "Resolved"
+                            ? "✓"
+                            : "○"
+                    } In Progress
+                </div>
+
+                <div class="timeline-step ${
+                    ticket.status === "Resolved"
+                        ? "active"
+                        : ""
+                }">
+                    ${
+                        ticket.status === "Resolved"
+                            ? "✓"
+                            : "○"
+                    } Resolved
+                </div>
+
+            </div>
+
+        </div>
+
+    `;
+}
+
+
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+
+function renderTickets() {
+
+    const role =
+        localStorage.getItem("campusRole");
+
+
+    if (role !== "admin") {
+        return;
+    }
+
+
+    const tickets =
+        getTickets();
+
+
+    const total =
+        tickets.length;
+
+
+    const pending =
+        tickets.filter(function(ticket) {
+
+            return ticket.status === "Pending";
+
+        }).length;
+
+
+    const progress =
+        tickets.filter(function(ticket) {
+
+            return ticket.status === "In Progress";
+
+        }).length;
+
+
+    const resolved =
+        tickets.filter(function(ticket) {
+
+            return ticket.status === "Resolved";
+
+        }).length;
+
+
+    document.getElementById("totalCount")
+        .textContent = total;
+
+    document.getElementById("pendingCount")
+        .textContent = pending;
+
+    document.getElementById("progressCount")
+        .textContent = progress;
+
+    document.getElementById("resolvedCount")
+        .textContent = resolved;
+
+
+    renderAdminTickets(tickets);
+}
+
+
+// ============================================================
+// ADMIN TICKET LIST
+// ============================================================
+
+function renderAdminTickets(tickets) {
+
+    const container =
+        document.getElementById("ticketList");
+
+
+    if (!container) {
+        return;
+    }
+
+
+    if (tickets.length === 0) {
+
+        container.innerHTML =
+            "<p>No tickets yet.</p>";
+
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    tickets.forEach(function(ticket) {
+
+        const card =
+            document.createElement("div");
+
+        card.className = "ticket-card admin-ticket";
+
+
+        card.innerHTML = `
+
+            <div class="ticket-top">
+
+                <strong>
+                    ${ticket.id}
+                </strong>
+
+                <span class="priority ${ticket.priority.toLowerCase()}">
+                    ${ticket.priority}
+                </span>
+
+            </div>
+
+
+            <h3>
+                ${ticket.category}
+            </h3>
+
+
+            <p>
+                👤 ${ticket.studentName}
+            </p>
+
+
+            <p>
+                📍 ${ticket.location}
+            </p>
+
+
+            <p>
+                ${ticket.description}
+            </p>
+
+
+            <p>
+                🏢 ${ticket.department}
+            </p>
+
+
+            <p>
+                🤖 ${ticket.action}
+            </p>
+
+
+            <label>
+                UPDATE STATUS
+            </label>
+
+
+            <select
+                onchange="updateTicketStatus('${ticket.id}', this.value)"
+            >
+
+                <option value="Pending"
+                    ${ticket.status === "Pending" ? "selected" : ""}>
+                    Pending
+                </option>
+
+                <option value="In Progress"
+                    ${ticket.status === "In Progress" ? "selected" : ""}>
+                    In Progress
+                </option>
+
+                <option value="Resolved"
+                    ${ticket.status === "Resolved" ? "selected" : ""}>
+                    Resolved
+                </option>
+
+            </select>
+
+
+            <div class="ticket-date">
+                ${ticket.createdAt}
+            </div>
+
+        `;
+
+
+        container.appendChild(card);
+
+    });
+}
+
+
+// ============================================================
+// UPDATE TICKET STATUS
+// ============================================================
+
+function updateTicketStatus(ticketId, newStatus) {
+
+    const tickets =
+        getTickets();
+
+
+    const ticket =
+        tickets.find(function(item) {
+
+            return item.id === ticketId;
+
+        });
+
+
+    if (!ticket) {
+        return;
+    }
+
+
+    ticket.status = newStatus;
+
+
+    saveTickets(tickets);
+
+
+    renderTickets();
+
+
+    updateStudentStats();
+
+    renderStudentTickets();
+}
+
+
+// ============================================================
+// FILTER ADMIN TICKETS
+// ============================================================
+
+function filterTickets() {
+
+    let tickets =
+        getTickets();
+
+
+    const status =
+        document.getElementById("statusFilter").value;
+
+
+    const priority =
+        document.getElementById("priorityFilter").value;
+
+
+    const department =
+        document.getElementById("departmentFilter").value;
+
+
+    if (status !== "all") {
+
+        tickets =
+            tickets.filter(function(ticket) {
+
+                return ticket.status === status;
+
+            });
+
+    }
+
+
+    if (priority !== "all") {
+
+        tickets =
+            tickets.filter(function(ticket) {
+
+                return ticket.priority === priority;
+
+            });
+
+    }
+
+
+    if (department !== "all") {
+
+        tickets =
+            tickets.filter(function(ticket) {
+
+                return ticket.department === department;
+
+            });
+
+    }
+
+
+    renderAdminTickets(tickets);
+}
+
+
+// ============================================================
+// FILTER EVENT LISTENERS
+// ============================================================
+
+const statusFilter =
+    document.getElementById("statusFilter");
+
+const priorityFilter =
+    document.getElementById("priorityFilter");
+
+const departmentFilter =
+    document.getElementById("departmentFilter");
+
+
+if (statusFilter) {
+
+    statusFilter.addEventListener(
+        "change",
+        filterTickets
+    );
+
+}
+
+
+if (priorityFilter) {
+
+    priorityFilter.addEventListener(
+        "change",
+        filterTickets
+    );
+
+}
+
+
+if (departmentFilter) {
+
+    departmentFilter.addEventListener(
+        "change",
+        filterTickets
+    );
+
+}
+
+
+// ============================================================
+// AUTO LOGIN CHECK
+// ============================================================
+
+window.addEventListener("load", function() {
+
+    const role =
+        localStorage.getItem("campusRole");
+
+
+    if (role === "student") {
+
+        openStudentPortal();
+
+    }
+
+    else if (role === "admin") {
+
+        openAdminPortal();
+
+    }
+
+});
